@@ -3,6 +3,7 @@ node_modules/
 .pnp
 .pnp.js
 .yarn/
+docs
 
 # ── Environment & Secrets ─────────────────────────────────────
 .env

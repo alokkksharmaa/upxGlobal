@@ -2,25 +2,25 @@
 
 require('dotenv').config();
 
-const express       = require('express');
-const helmet        = require('helmet');
-const cors          = require('cors');
-const compression   = require('compression');
-const rateLimit     = require('express-rate-limit');
+const express = require('express');
+const helmet = require('helmet');
+const cors = require('cors');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
-const xss           = require('xss-clean');
-const path          = require('path');
+const { xss } = require('express-xss-sanitizer');
+const path = require('path');
 
-const logger           = require('./config/logger');
+const logger = require('./config/logger');
 const { errorHandler } = require('./middleware/errorHandler');
 
 // ── Route Imports ──────────────────────────────────────────────
-const authRoutes       = require('./routes/auth');
-const courseRoutes     = require('./routes/courses');
+const authRoutes = require('./routes/auth');
+const courseRoutes = require('./routes/courses');
 const enrollmentRoutes = require('./routes/enrollments');
-const paymentRoutes    = require('./routes/payments');
-const adminRoutes      = require('./routes/admin');
-const webhookRoutes    = require('./routes/webhooks');
+const paymentRoutes = require('./routes/payments');
+const adminRoutes = require('./routes/admin');
+const webhookRoutes = require('./routes/webhooks');
 
 const app = express();
 
@@ -34,10 +34,10 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        styleSrc:   ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-        fontSrc:    ["'self'", 'https://fonts.gstatic.com'],
-        scriptSrc:  ["'self'", 'https://checkout.razorpay.com'],
-        imgSrc:     ["'self'", 'data:', 'https:'],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+        scriptSrc: ["'self'", 'https://checkout.razorpay.com'],
+        imgSrc: ["'self'", 'data:', 'https:'],
       },
     },
   })
@@ -73,9 +73,9 @@ app.use(compression());
 // ── Global Rate Limiter ─────────────────────────────────────────
 const globalLimiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000,
-  max:      parseInt(process.env.RATE_LIMIT_MAX, 10) || 100,
+  max: parseInt(process.env.RATE_LIMIT_MAX, 10) || 100,
   standardHeaders: true,
-  legacyHeaders:   false,
+  legacyHeaders: false,
   message: { success: false, message: 'Too many requests. Please try again later.' },
 });
 app.use('/api', globalLimiter);
@@ -83,7 +83,7 @@ app.use('/api', globalLimiter);
 // ── Request Logger ──────────────────────────────────────────────
 app.use((req, _res, next) => {
   logger.info(`${req.method} ${req.originalUrl}`, {
-    ip:        req.ip,
+    ip: req.ip,
     userAgent: req.get('User-Agent'),
   });
   next();
@@ -93,19 +93,19 @@ app.use((req, _res, next) => {
 app.get('/health', (_req, res) => {
   res.json({
     success: true,
-    status:  'healthy',
-    env:     process.env.NODE_ENV,
-    ts:      new Date().toISOString(),
+    status: 'healthy',
+    env: process.env.NODE_ENV,
+    ts: new Date().toISOString(),
   });
 });
 
 // ── API Routes ──────────────────────────────────────────────────
-app.use('/api/auth',        authRoutes);
-app.use('/api/courses',     courseRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/courses', courseRoutes);
 app.use('/api/enrollments', enrollmentRoutes);
-app.use('/api/payments',    paymentRoutes);
-app.use('/api/admin',       adminRoutes);
-app.use('/api/webhooks',    webhookRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/webhooks', webhookRoutes);
 
 // ── 404 Handler ─────────────────────────────────────────────────
 app.use((_req, res) => {
