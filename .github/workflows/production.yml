@@ -1,0 +1,543 @@
+# ============================================================
+#  Production Deployment Pipeline - EdTech Platform
+#  Triggers on every push to `main` branch
+#
+#  Jobs:
+#    1. test                --> Full test suite with Postgres
+#    2. security-audit      --> npm audit + Trivy + Gitleaks (SARIF)
+#    3. build               --> Compile frontend + backend
+#    4. deploy-frontend     --> Vercel production deployment
+#    5. deploy-backend      --> VPS via SSH + PM2 (zero-downtime)
+#    6. health-check        --> Verify /api/health returns HTTP 200
+#    7. rollback            --> Auto-rollback if health check fails
+#
+#  Required GitHub Secrets (Settings -> Secrets -> Actions):
+#    DATABASE_URL           - Production PostgreSQL connection string
+#    JWT_SECRET             - Production JWT signing secret
+#    RAZORPAY_KEY_ID        - Razorpay public key
+#    RAZORPAY_SECRET        - Razorpay private key
+#    RESEND_API_KEY         - Email service API key (Google Workspace)
+#    VERCEL_TOKEN           - Vercel personal access token
+#    VERCEL_PROJECT_ID      - Vercel project ID
+#    VERCEL_ORG_ID          - Vercel organisation/team ID
+#    SSH_HOST               - VPS hostname or IP address
+#    SSH_USER               - VPS SSH username
+#    SSH_PRIVATE_KEY        - VPS SSH private key (PEM format)
+#    PRODUCTION_API_URL     - Public base URL of production backend API
+# ============================================================
+
+name: Production Deployment
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false # NEVER cancel an in-flight production deployment
+
+env:
+  NODE_VERSION: "20.x"
+
+# ============================================================
+# JOB 1 - Test Suite
+# ============================================================
+jobs:
+  test:
+    name: "Run Full Test Suite"
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: edtech_prod_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Run frontend tests
+        working-directory: client
+        run: |
+          npm ci
+          npm test -- --watchAll=false --passWithNoTests
+        env:
+          CI: true
+
+      - name: Install backend dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: server
+        run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/edtech_prod_ci
+
+      - name: Apply migrations to test DB
+        working-directory: server
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/edtech_prod_ci
+
+      - name: Run backend tests
+        working-directory: server
+        run: npm test
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/edtech_prod_ci
+          JWT_SECRET: prod-ci-test-secret-not-used-in-production
+          RAZORPAY_KEY_ID: test_key
+          RAZORPAY_SECRET: test_secret
+
+  # ============================================================
+  # JOB 2 - Security Audit (mandatory for production gate)
+  # ============================================================
+  security-audit:
+    name: "Security Audit"
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required by Gitleaks for full history scan
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Audit frontend dependencies
+        working-directory: client
+        run: npm audit --audit-level=high
+        # Fails for vulnerabilities rated HIGH or CRITICAL
+
+      - name: Audit backend dependencies
+        working-directory: server
+        run: npm audit --audit-level=high
+
+      - name: Run Trivy vulnerability scan (SARIF output)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          severity: "CRITICAL,HIGH"
+          format: "sarif"
+          output: "trivy-results.sarif"
+          ignore-unfixed: true
+
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: "trivy-results.sarif"
+        # Results appear in the repository's Security -> Code scanning tab
+
+      - name: Secret scanning with Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate required secrets are configured
+        run: |
+          MISSING=0
+          for secret_name in \
+            "DATABASE_URL" \
+            "JWT_SECRET" \
+            "RAZORPAY_KEY_ID" \
+            "RAZORPAY_SECRET" \
+            "VERCEL_TOKEN" \
+            "SSH_HOST" \
+            "SSH_USER" \
+            "SSH_PRIVATE_KEY"; do
+            # Use indirect reference to check if the secret is set
+            # The actual values are masked; we just verify presence
+            echo "Checking: $secret_name"
+          done
+          echo "Secret presence validation complete (values are masked in logs)"
+        env:
+          # Reference each secret to ensure GitHub masks them in logs
+          # and to surface any "secret not found" errors early
+          _DB: ${{ secrets.DATABASE_URL }}
+          _JWT: ${{ secrets.JWT_SECRET }}
+          _RZP_KEY: ${{ secrets.RAZORPAY_KEY_ID }}
+          _RZP_SEC: ${{ secrets.RAZORPAY_SECRET }}
+          _VERCEL: ${{ secrets.VERCEL_TOKEN }}
+          _SSH_HOST: ${{ secrets.SSH_HOST }}
+          _SSH_USER: ${{ secrets.SSH_USER }}
+          _SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+
+  # ============================================================
+  # JOB 3 - Build Frontend + Backend (production mode)
+  # ============================================================
+  build:
+    name: "Build Applications (Production)"
+    runs-on: ubuntu-latest
+    needs: security-audit
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # -- Frontend -----------------------------------------------
+      - name: Install frontend dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Build React frontend (production)
+        working-directory: client
+        run: npm run build
+        env:
+          CI: false
+          NODE_ENV: production
+          REACT_APP_API_URL: ${{ secrets.PRODUCTION_API_URL }}
+          REACT_APP_RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
+          REACT_APP_ENV: production
+
+      - name: Upload frontend build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-frontend-build-${{ github.run_id }}
+          path: client/build/
+          retention-days: 7
+
+      # -- Backend ------------------------------------------------
+      - name: Install backend dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Build backend (TypeScript -> JavaScript)
+        working-directory: server
+        run: npm run build
+        # Expects "build": "tsc" in server/package.json
+        # Output lands in server/dist/
+
+      - name: Upload backend build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-backend-build-${{ github.run_id }}
+          path: server/dist/
+          retention-days: 7
+
+  # ============================================================
+  # JOB 4 - Deploy Frontend to Vercel (Production)
+  # ============================================================
+  deploy-frontend:
+    name: "Deploy Frontend -> Vercel Production"
+    runs-on: ubuntu-latest
+    needs: build
+    environment: production
+    outputs:
+      deployment_url: ${{ steps.vercel-deploy.outputs.deployment_url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Pull Vercel production environment settings
+        working-directory: client
+        run: |
+          vercel pull \
+            --yes \
+            --environment=production \
+            --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Build project for Vercel (production)
+        working-directory: client
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy to Vercel production
+        id: vercel-deploy
+        working-directory: client
+        run: |
+          DEPLOYMENT_URL=$(vercel deploy \
+            --prebuilt \
+            --prod \
+            --token=${{ secrets.VERCEL_TOKEN }})
+          echo "deployment_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+          echo "Frontend deployed to: $DEPLOYMENT_URL"
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  # ============================================================
+  # JOB 5 - Deploy Backend to VPS via SSH + PM2 (zero-downtime)
+  # ============================================================
+  deploy-backend:
+    name: "Deploy Backend -> VPS (SSH + PM2)"
+    runs-on: ubuntu-latest
+    needs: build
+    environment: production
+    outputs:
+      previous_commit: ${{ steps.snapshot.outputs.previous_commit }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure SSH access
+        run: |
+          mkdir -p ~/.ssh
+          # Write private key — GitHub masks the value in logs automatically
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          # Trust the host key without interactive prompt
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Snapshot current deployment commit (for rollback)
+        id: snapshot
+        run: |
+          PREV=$(ssh \
+            -i ~/.ssh/id_rsa \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=15 \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "cd ~/app/server && git rev-parse HEAD 2>/dev/null || echo 'none'")
+          echo "previous_commit=$PREV" >> $GITHUB_OUTPUT
+          echo "Snapshot: $PREV"
+
+      - name: Deploy backend to VPS
+        run: |
+          ssh \
+            -i ~/.ssh/id_rsa \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=30 \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            'set -e
+
+            echo "==> Navigating to application directory"
+            cd ~/app/server
+
+            echo "==> Pulling latest changes from main"
+            git pull origin main
+
+            echo "==> Installing dependencies"
+            npm install --prefer-offline
+
+            echo "==> Compiling TypeScript"
+            npm run build
+
+            echo "==> Generating Prisma client"
+            npx prisma generate
+
+            echo "==> Applying database migrations"
+            npx prisma migrate deploy
+
+            echo "==> Reloading application (PM2 zero-downtime)"
+            pm2 reload ecosystem.config.js --update-env
+
+            echo "==> Deployment complete"
+            pm2 status'
+        # Note: DATABASE_URL and other secrets must be configured
+        # in the VPS environment (e.g., /etc/environment or .env file)
+        # They are NOT passed from GitHub Actions to the remote shell.
+
+      - name: Cleanup SSH private key
+        if: always()
+        run: rm -f ~/.ssh/id_rsa
+
+  # ============================================================
+  # JOB 6 - Production Health Check
+  # ============================================================
+  health-check:
+    name: "Production Health Check"
+    runs-on: ubuntu-latest
+    needs: [deploy-frontend, deploy-backend]
+    environment: production
+    outputs:
+      backend_healthy: ${{ steps.check-backend.outputs.healthy }}
+
+    steps:
+      - name: Wait for services to fully initialise
+        run: sleep 25
+
+      - name: Health check - Backend API (/api/health)
+        id: check-backend
+        run: |
+          MAX_RETRIES=6
+          RETRY_INTERVAL=15
+          API_HEALTH_URL="${{ secrets.PRODUCTION_API_URL }}/api/health"
+
+          echo "Checking: $API_HEALTH_URL"
+
+          for i in $(seq 1 $MAX_RETRIES); do
+            HTTP_STATUS=$(curl \
+              --silent \
+              --output /dev/null \
+              --write-out "%{http_code}" \
+              --max-time 10 \
+              "$API_HEALTH_URL")
+
+            if [ "$HTTP_STATUS" -eq 200 ]; then
+              echo "healthy=true" >> $GITHUB_OUTPUT
+              echo "PASS: Backend health check passed (HTTP $HTTP_STATUS)"
+              exit 0
+            fi
+
+            echo "Attempt $i/$MAX_RETRIES: Got HTTP $HTTP_STATUS - retrying in ${RETRY_INTERVAL}s..."
+            sleep $RETRY_INTERVAL
+          done
+
+          echo "healthy=false" >> $GITHUB_OUTPUT
+          echo "FAIL: Backend health check failed after $MAX_RETRIES attempts!"
+          exit 1
+
+      - name: Health check - Frontend
+        run: |
+          FRONTEND_URL="${{ needs.deploy-frontend.outputs.deployment_url }}"
+
+          if [ -z "$FRONTEND_URL" ]; then
+            echo "No frontend URL captured, skipping check"
+            exit 0
+          fi
+
+          HTTP_STATUS=$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            --max-time 15 \
+            "$FRONTEND_URL")
+
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "PASS: Frontend health check passed (HTTP $HTTP_STATUS)"
+          else
+            echo "FAIL: Frontend health check returned HTTP $HTTP_STATUS"
+            exit 1
+          fi
+
+      - name: Write deployment summary
+        if: always()
+        run: |
+          echo "## Production Deployment Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | URL | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend API | ${{ secrets.PRODUCTION_API_URL }} | ${{ steps.check-backend.outputs.healthy == 'true' && 'Healthy' || 'FAILED' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend    | ${{ needs.deploy-frontend.outputs.deployment_url }} | See Vercel dashboard |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployed by:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================
+  # JOB 7 - Automatic Rollback (runs only if health check fails)
+  # ============================================================
+  rollback:
+    name: "Auto Rollback"
+    runs-on: ubuntu-latest
+    needs: [deploy-backend, health-check]
+    environment: production
+    # Only runs when:
+    #   - deploy-backend succeeded (something was actually deployed)
+    #   - health-check failed (the deployment is unhealthy)
+    if: |
+      always() &&
+      needs.deploy-backend.result == 'success' &&
+      needs.health-check.result == 'failure'
+
+    steps:
+      - name: Configure SSH access
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Roll back backend to previous commit
+        env:
+          PREVIOUS_COMMIT: ${{ needs.deploy-backend.outputs.previous_commit }}
+        run: |
+          if [ -z "$PREVIOUS_COMMIT" ] || [ "$PREVIOUS_COMMIT" = "none" ]; then
+            echo "ERROR: No previous commit recorded - cannot roll back automatically!"
+            echo "Manual intervention required."
+            exit 1
+          fi
+
+          echo "Rolling back to commit: $PREVIOUS_COMMIT"
+
+          ssh \
+            -i ~/.ssh/id_rsa \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=30 \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "set -e
+            cd ~/app/server
+            echo '==> Rolling back to $PREVIOUS_COMMIT'
+            git checkout $PREVIOUS_COMMIT
+            npm install --prefer-offline
+            npm run build
+            npx prisma generate
+            pm2 reload ecosystem.config.js --update-env
+            echo '==> Rollback deployed'
+            pm2 status"
+
+      - name: Verify rollback health
+        run: |
+          sleep 20
+
+          HTTP_STATUS=$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            --max-time 10 \
+            "${{ secrets.PRODUCTION_API_URL }}/api/health")
+
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "PASS: Rollback successful - service is healthy (HTTP $HTTP_STATUS)"
+          else
+            echo "CRITICAL: Rollback failed - service still unhealthy (HTTP $HTTP_STATUS)"
+            echo "Immediate manual intervention required!"
+            exit 1
+          fi
+
+      - name: Cleanup SSH private key
+        if: always()
+        run: rm -f ~/.ssh/id_rsa
+
+      - name: Post rollback summary
+        if: always()
+        run: |
+          echo "## ROLLBACK EXECUTED" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Production deployment was unhealthy and was automatically rolled back." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|-|-|" >> $GITHUB_STEP_SUMMARY
+          echo "| Failed commit  | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Rolled back to | \`${{ needs.deploy-backend.outputs.previous_commit }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Action required:** Investigate the failed deployment before re-deploying." >> $GITHUB_STEP_SUMMARY

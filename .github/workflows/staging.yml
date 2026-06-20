@@ -1,0 +1,320 @@
+# ============================================================
+#  Staging Deployment Pipeline - EdTech Platform
+#  Triggers on every push to `develop` branch
+#
+#  Jobs:
+#    1. test                    → Run full test suite
+#    2. build                   → Compile frontend + backend
+#    3. deploy-backend-staging  → Deploy to Railway (staging service)
+#    4. deploy-frontend-staging → Deploy preview to Vercel
+#    5. health-check-staging    → Verify /api/health returns HTTP 200
+#
+#  Required GitHub Secrets (Settings → Secrets → Actions):
+#    STAGING_API_URL          – Base URL of the Railway staging backend
+#    RAILWAY_TOKEN            – Railway API token
+#    RAILWAY_SERVICE_NAME     – Name of the Railway service to deploy
+#    VERCEL_TOKEN             – Vercel personal access token
+#    VERCEL_ORG_ID            – Vercel team/org ID
+#    VERCEL_PROJECT_ID        – Vercel project ID
+#    RAZORPAY_KEY_ID          – Razorpay public key (non-secret but env-scoped)
+# ============================================================
+
+name: Staging Deployment
+
+on:
+  push:
+    branches:
+      - develop
+
+concurrency:
+  group: staging-deployment
+  cancel-in-progress: false # Never cancel an in-flight staging deployment
+
+env:
+  NODE_VERSION: "20.x"
+
+# ──────────────────────────────────────────────────────────────
+# JOB 1 - Test Suite
+# ──────────────────────────────────────────────────────────────
+jobs:
+  test:
+    name: "Run Test Suite"
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: edtech_staging_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install and test frontend
+        working-directory: client
+        run: |
+          npm ci
+          npm test -- --watchAll=false --passWithNoTests
+        env:
+          CI: true
+
+      - name: Generate Prisma client (required before backend tests)
+        working-directory: server
+        run: |
+          npm ci
+          npx prisma generate
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/edtech_staging_ci
+
+      - name: Run backend migrations on test DB
+        working-directory: server
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/edtech_staging_ci
+
+      - name: Run backend tests
+        working-directory: server
+        run: npm test
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/edtech_staging_ci
+          JWT_SECRET: staging-ci-test-secret-not-used-in-production
+          RAZORPAY_KEY_ID: test_key
+          RAZORPAY_SECRET: test_secret
+
+  # ──────────────────────────────────────────────────────────────
+  # JOB 2 - Build Frontend + Backend
+  # ──────────────────────────────────────────────────────────────
+  build:
+    name: "Build Applications"
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # ── Frontend ─────────────────────────────────────────────
+      - name: Install frontend dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Build React frontend (staging)
+        working-directory: client
+        run: npm run build
+        env:
+          CI: false
+          NODE_ENV: production
+          # MOCK values for local testing - replace with ${{ secrets.XXX }} before going live
+          REACT_APP_API_URL: https://staging-api.upxglobal.example.com
+          REACT_APP_RAZORPAY_KEY_ID: rzp_test_mockkey123456
+          REACT_APP_ENV: staging
+
+      - name: Upload frontend build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-frontend-build-${{ github.run_id }}
+          path: client/build/
+          retention-days: 3
+
+      # ── Backend ──────────────────────────────────────────────
+      - name: Install backend dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Build backend (TypeScript → JavaScript)
+        working-directory: server
+        run: npm run build
+
+      - name: Upload backend build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-backend-build-${{ github.run_id }}
+          path: server/dist/
+          retention-days: 3
+
+  # ──────────────────────────────────────────────────────────────
+  # JOB 3 - Deploy Backend to Railway (Staging)
+  # ──────────────────────────────────────────────────────────────
+  deploy-backend-staging:
+    name: "Deploy Backend - Railway Staging"
+    runs-on: ubuntu-latest
+    needs: build
+    # environment: staging  # Uncomment after creating the 'staging' environment in GitHub repo settings
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy backend to Railway staging service
+        working-directory: server
+        run: |
+          railway up \
+            --service "edtech-staging" \
+            --detach
+        env:
+          # MOCK token for local testing - replace with ${{ secrets.RAILWAY_TOKEN }} before going live
+          RAILWAY_TOKEN: mock_railway_token_for_testing
+        # --detach starts the deployment without waiting; Railway manages
+        # the rollout. Remove --detach if you want to wait for completion.
+
+      - name: Wait for Railway deployment to stabilise
+        run: |
+          echo "Waiting 45 seconds for Railway service to start..."
+          sleep 45
+
+  # ──────────────────────────────────────────────────────────────
+  # JOB 4 - Deploy Frontend to Vercel (Preview)
+  # ──────────────────────────────────────────────────────────────
+  deploy-frontend-staging:
+    name: "Deploy Frontend - Vercel Preview"
+    runs-on: ubuntu-latest
+    needs: build
+    # environment: staging  # Uncomment after creating the 'staging' environment in GitHub repo settings
+    outputs:
+      preview_url: ${{ steps.vercel-deploy.outputs.preview_url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Pull Vercel project settings (preview env)
+        working-directory: client
+        run: |
+          vercel pull \
+            --yes \
+            --environment=preview \
+            --token=mock_vercel_token_for_testing
+        env:
+          # MOCK IDs for local testing - replace with ${{ secrets.XXX }} before going live
+          VERCEL_ORG_ID: mock_vercel_org_id
+          VERCEL_PROJECT_ID: mock_vercel_project_id
+
+      - name: Build project for Vercel
+        working-directory: client
+        run: vercel build --token=mock_vercel_token_for_testing
+        env:
+          VERCEL_ORG_ID: mock_vercel_org_id
+          VERCEL_PROJECT_ID: mock_vercel_project_id
+
+      - name: Deploy preview to Vercel
+        id: vercel-deploy
+        working-directory: client
+        run: |
+          PREVIEW_URL=$(vercel deploy --prebuilt \
+            --token=mock_vercel_token_for_testing)
+          echo "preview_url=$PREVIEW_URL" >> $GITHUB_OUTPUT
+          echo "Staging frontend preview URL: $PREVIEW_URL"
+        env:
+          VERCEL_ORG_ID: mock_vercel_org_id
+          VERCEL_PROJECT_ID: mock_vercel_project_id
+
+      - name: Post preview URL to job summary
+        run: |
+          echo "## Staging Frontend Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "Preview URL: ${{ steps.vercel-deploy.outputs.preview_url }}" >> $GITHUB_STEP_SUMMARY
+
+  # ──────────────────────────────────────────────────────────────
+  # JOB 5 - Staging Health Check
+  # ──────────────────────────────────────────────────────────────
+  health-check-staging:
+    name: "Staging Health Check"
+    runs-on: ubuntu-latest
+    needs: [deploy-backend-staging, deploy-frontend-staging]
+
+    steps:
+      - name: Wait for services to stabilise
+        run: sleep 20
+
+      - name: Health check - Backend API (/api/health)
+        run: |
+          MAX_RETRIES=6
+          RETRY_INTERVAL=15
+
+          # MOCK URL for local testing - replace with the STAGING_API_URL secret before going live
+          STAGING_API_URL="https://staging-api.upxglobal.example.com"
+
+          echo "Checking: $STAGING_API_URL/api/health"
+
+          for i in $(seq 1 $MAX_RETRIES); do
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              --max-time 10 \
+              "$STAGING_API_URL/api/health")
+
+            if [ "$HTTP_STATUS" -eq 200 ]; then
+              echo "✓ Backend health check passed (HTTP $HTTP_STATUS)"
+              exit 0
+            fi
+
+            echo "Attempt $i/$MAX_RETRIES: Got HTTP $HTTP_STATUS - retrying in ${RETRY_INTERVAL}s..."
+            sleep $RETRY_INTERVAL
+          done
+
+          echo "✗ Backend health check failed after $MAX_RETRIES attempts!"
+          exit 1
+
+      - name: Health check - Frontend preview
+        run: |
+          PREVIEW_URL="${{ needs.deploy-frontend-staging.outputs.preview_url }}"
+
+          if [ -z "$PREVIEW_URL" ]; then
+            echo "No preview URL available, skipping frontend health check"
+            exit 0
+          fi
+
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 15 \
+            "$PREVIEW_URL")
+
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "✓ Frontend health check passed (HTTP $HTTP_STATUS)"
+          else
+            echo "✗ Frontend health check failed (HTTP $HTTP_STATUS)"
+            exit 1
+          fi
+
+      - name: Write staging deployment summary
+        if: always()
+        run: |
+          echo "## Staging Deployment Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | URL |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|-----|" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend API | https://staging-api.upxglobal.example.com |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend    | ${{ needs.deploy-frontend-staging.outputs.preview_url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+
