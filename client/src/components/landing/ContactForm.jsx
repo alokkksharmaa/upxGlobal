@@ -58,36 +58,47 @@ export default function ContactForm() {
                 {
                   icon: "📧",
                   title: "Email Us",
-                  val: "support@upxglobal.com",
+                  val: "contact@upxglobal.info",
                   sub: "Response within 24 hours",
+                  href: "mailto:contact@upxglobal.info",
                 },
                 {
-                  icon: "📞",
-                  title: "Call Us",
-                  val: "+91-XXXXXXXXXX",
-                  sub: "Mon–Fri, 9 AM – 6 PM IST",
+                  icon: "📱",
+                  title: "WhatsApp",
+                  val: "+91 6291875728",
+                  sub: "Mon–Sat, 9 AM – 6 PM IST",
+                  href: "https://wa.me/916291875728",
                 },
                 {
-                  icon: "📍",
-                  title: "Visit Us",
-                  val: "Bangalore, India",
-                  sub: "By appointment only",
+                  icon: "🌐",
+                  title: "Website",
+                  val: "www.upxglobal.info",
+                  sub: "Live training & resources",
+                  href: "https://www.upxglobal.info",
                 },
-              ].map(({ icon, title, val, sub }) => (
-                <div key={title} className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-primary-100 flex items-center justify-center text-xl flex-shrink-0">
+              ].map(({ icon, title, val, sub, href }) => (
+                <a
+                  key={title}
+                  href={href}
+                  target={href.startsWith("http") ? "_blank" : undefined}
+                  rel={
+                    href.startsWith("http") ? "noopener noreferrer" : undefined
+                  }
+                  className="flex items-start gap-4 group"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-primary-100 group-hover:bg-primary-200 transition-colors flex items-center justify-center text-xl flex-shrink-0">
                     {icon}
                   </div>
                   <div>
                     <p className="font-semibold text-gray-900 text-sm">
                       {title}
                     </p>
-                    <p className="text-primary-700 font-medium text-sm">
+                    <p className="text-primary-700 font-medium text-sm group-hover:text-primary-900 transition-colors">
                       {val}
                     </p>
                     <p className="text-gray-400 text-xs">{sub}</p>
                   </div>
-                </div>
+                </a>
               ))}
             </div>
           </motion.div>

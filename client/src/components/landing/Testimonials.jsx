@@ -5,37 +5,45 @@ const TESTIMONIALS = [
   {
     name: "Priya Sharma",
     role: "Software Engineer @ Infosys",
-    course: "Full Stack Development",
-    avatar: "PS",
+    course: "Industry-Oriented Training",
+    initials: "PS",
+    photo:
+      "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=100&h=100&auto=format&fit=crop&q=80",
     rating: 5,
-    text: "UPX Global completely transformed my career. The hands-on projects and mentor support helped me land my dream job within 2 months of completing the course. Worth every rupee!",
+    text: "UpXGlobal completely transformed my career. The hands-on projects and mentor support helped me land my dream job within 2 months of completing the course. Absolutely worth every rupee!",
     bg: "from-blue-500 to-primary-700",
   },
   {
     name: "Rahul Verma",
     role: "Data Analyst @ TCS",
-    course: "Data Science & ML",
-    avatar: "RV",
+    course: "Career Readiness Program",
+    initials: "RV",
+    photo:
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&h=100&auto=format&fit=crop&q=80",
     rating: 5,
-    text: "The course content is incredibly well-structured and industry-relevant. My instructor's expertise was unmatched, and the placement support team worked tirelessly to help me get placed.",
+    text: "The course content is incredibly well-structured and industry-relevant. The placement support team worked tirelessly to help me get placed. I got my offer within 30 days.",
     bg: "from-purple-500 to-primary-800",
   },
   {
     name: "Ananya Singh",
-    role: "Cloud Engineer @ Wipro",
-    course: "Cloud Computing (AWS)",
-    avatar: "AS",
+    role: "Associate @ Wipro",
+    course: "Professional Upskilling",
+    initials: "AS",
+    photo:
+      "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=100&h=100&auto=format&fit=crop&q=80",
     rating: 5,
-    text: "I was a complete beginner when I joined. Six months later, I have my AWS certification and a job offer in hand. The practical labs and real-world scenarios made all the difference.",
+    text: "I was a working professional looking to switch roles. UpXGlobal's upskilling program gave me exactly the edge I needed. My LinkedIn was optimized, my resume was revamped — and I got a better role!",
     bg: "from-green-500 to-teal-700",
   },
   {
     name: "Karthik Nair",
-    role: "UI/UX Designer @ Accenture",
-    course: "UI/UX Design",
-    avatar: "KN",
+    role: "Business Analyst @ Accenture",
+    course: "Industry-Oriented Training",
+    initials: "KN",
+    photo:
+      "https://images.unsplash.com/photo-1569124589354-615739ae007b?w=100&h=100&auto=format&fit=crop&q=80",
     rating: 5,
-    text: "The design thinking methodology taught here is exactly what companies want. The portfolio projects I built during the course were what got me hired — my interviewer was genuinely impressed.",
+    text: "The real-world case studies and expert-led sessions set this apart from any other training I've done. The 45-day structure was intense but perfectly paced. Highly recommend!",
     bg: "from-orange-500 to-red-600",
   },
 ];
@@ -72,7 +80,7 @@ export default function Testimonials() {
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {TESTIMONIALS.map(
-            ({ name, role, course, avatar, rating, text, bg }, i) => (
+            ({ name, role, course, initials, photo, rating, text, bg }, i) => (
               <motion.div
                 key={name}
                 initial={{ opacity: 0, y: 30 }}
@@ -86,10 +94,19 @@ export default function Testimonials() {
                   "{text}"
                 </p>
                 <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
+                  <img
+                    src={photo}
+                    alt={name}
+                    className="w-10 h-10 rounded-full object-cover flex-shrink-0 ring-2 ring-primary-100"
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                      e.target.nextSibling.style.display = "flex";
+                    }}
+                  />
                   <div
-                    className={`w-10 h-10 rounded-full bg-gradient-to-br ${bg} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}
+                    className={`w-10 h-10 rounded-full bg-gradient-to-br ${bg} items-center justify-center text-white font-bold text-sm flex-shrink-0 hidden`}
                   >
-                    {avatar}
+                    {initials}
                   </div>
                   <div>
                     <p className="font-semibold text-gray-900 text-sm">

@@ -1,150 +1,170 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import {
+  RiShieldCheckLine,
+  RiArrowRightLine,
+  RiCheckLine,
+  RiUserStarLine,
+  RiBriefcaseLine,
+  RiGroupLine,
+} from "react-icons/ri";
+
+const STATS = [
+  { icon: RiUserStarLine, value: "5,000+", label: "Students Trained" },
+  { icon: RiBriefcaseLine, value: "95%", label: "Placement Rate" },
+  { icon: RiGroupLine, value: "50+", label: "Hiring Partners" },
+];
 
 export default function Hero() {
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700">
-      {/* Background pattern */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-accent rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-blue-400 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-purple-400 rounded-full blur-3xl" />
-      </div>
-
-      {/* Grid dots */}
+    <section className="relative min-h-screen flex items-center overflow-hidden bg-primary-900">
+      {/* Subtle grid overlay */}
       <div
-        className="absolute inset-0 opacity-5"
+        className="absolute inset-0 opacity-[0.04]"
         style={{
           backgroundImage:
-            "radial-gradient(circle, #ffffff 1px, transparent 1px)",
-          backgroundSize: "40px 40px",
+            "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)",
+          backgroundSize: "64px 64px",
         }}
       />
+      {/* Glow accent */}
+      <div className="absolute -top-40 -right-40 w-[600px] h-[600px] rounded-full bg-accent/10 blur-[120px] pointer-events-none" />
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          {/* Left — text */}
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-28 lg:py-36">
+        <div className="grid lg:grid-cols-2 gap-16 items-center">
+          {/* ── Left — copy ─────────────────────────────────────────── */}
           <motion.div
-            initial={{ opacity: 0, x: -40 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, ease: "easeOut" }}
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.65, ease: "easeOut" }}
           >
-            <span className="inline-flex items-center gap-2 bg-accent/20 text-accent border border-accent/30 rounded-full px-4 py-1.5 text-sm font-semibold mb-6">
-              🎓 India's Fastest-Growing EdTech
-            </span>
-            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl text-white font-bold leading-tight mb-6">
-              Launch Your <span className="text-accent">Dream Career</span> with
-              Expert Training
+            {/* Trust badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-accent/15 border border-accent/25 text-accent text-sm font-medium mb-8">
+              <RiShieldCheckLine className="text-base flex-shrink-0" />
+              <span>Trusted by Students Across India</span>
+            </div>
+
+            <h1 className="font-display text-4xl sm:text-5xl lg:text-[3.25rem] leading-[1.1] text-white font-bold mb-6">
+              Build Skills That Create{" "}
+              <span className="text-accent">Real Opportunities</span>
             </h1>
-            <p className="text-primary-200 text-lg leading-relaxed mb-8 max-w-xl">
-              Industry-aligned programs designed by experts. Learn real skills,
-              build real projects, and land real jobs. Over 5,000+ students
-              placed across top companies.
+
+            <p className="text-primary-300 text-lg leading-relaxed mb-10 max-w-lg">
+              Industry-focused training programs designed to help students gain
+              practical skills, confidence, and career growth.
             </p>
 
-            {/* Stats bar */}
-            <div className="flex flex-wrap gap-6 mb-10">
-              {[
-                { value: "5,000+", label: "Students Trained" },
-                { value: "95%", label: "Placement Rate" },
-                { value: "50+", label: "Hiring Partners" },
-              ].map(({ value, label }) => (
-                <div key={label}>
-                  <div className="text-2xl font-display font-bold text-accent">
-                    {value}
+            {/* CTAs */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-14">
+              <Link
+                to="/courses"
+                className="btn-accent text-base px-8 py-3.5 rounded-lg inline-flex items-center gap-2"
+              >
+                Explore Courses
+                <RiArrowRightLine className="text-lg" />
+              </Link>
+              <Link
+                to="/contact"
+                className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-lg border border-white/20 text-white text-base font-semibold hover:bg-white/8 transition-colors"
+              >
+                Contact Us
+              </Link>
+            </div>
+
+            {/* Stats */}
+            <div className="flex flex-wrap gap-8">
+              {STATS.map(({ icon: Icon, value, label }) => (
+                <div key={label} className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-white/8 flex items-center justify-center flex-shrink-0">
+                    <Icon className="text-accent text-xl" />
                   </div>
-                  <div className="text-primary-200 text-sm">{label}</div>
+                  <div>
+                    <p className="font-display font-bold text-white text-xl leading-none">
+                      {value}
+                    </p>
+                    <p className="text-primary-400 text-xs mt-0.5">{label}</p>
+                  </div>
                 </div>
               ))}
             </div>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link to="/courses" className="btn-accent text-base px-8 py-3.5">
-                Explore Courses →
-              </Link>
-              <a
-                href="#about"
-                className="btn-secondary text-base px-8 py-3.5 border-white/40 text-white hover:bg-white/10"
-              >
-                Learn More
-              </a>
-            </div>
           </motion.div>
 
-          {/* Right — card stack */}
+          {/* ── Right — visual card ──────────────────────────────────── */}
           <motion.div
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, ease: "easeOut", delay: 0.2 }}
-            className="hidden lg:block relative"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.65, ease: "easeOut", delay: 0.18 }}
+            className="hidden lg:block"
           >
-            {/* Main card */}
-            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-8 shadow-lifted">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-2xl bg-accent flex items-center justify-center text-2xl">
-                  🚀
+            <div className="relative">
+              {/* Main info card */}
+              <div className="bg-white/7 backdrop-blur-sm border border-white/12 rounded-2xl p-8">
+                <p className="text-primary-300 text-xs uppercase tracking-widest font-semibold mb-1">
+                  Featured Program
+                </p>
+                <h3 className="text-white font-display font-bold text-xl mb-1">
+                  Industry-Oriented Training
+                </h3>
+                <p className="text-primary-300 text-sm mb-6">
+                  45-day program · ₹800
+                </p>
+
+                <ul className="space-y-3 mb-8">
+                  {[
+                    "Practical, job-focused learning",
+                    "Industry-relevant curriculum",
+                    "Hands-on projects & assignments",
+                    "Expert-led training sessions",
+                  ].map((item) => (
+                    <li
+                      key={item}
+                      className="flex items-center gap-3 text-primary-200 text-sm"
+                    >
+                      <span className="w-5 h-5 rounded-full bg-accent/20 border border-accent/30 flex items-center justify-center flex-shrink-0">
+                        <RiCheckLine className="text-accent text-xs" />
+                      </span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+
+                <Link
+                  to="/courses"
+                  className="btn-accent w-full justify-center rounded-lg"
+                >
+                  Enroll Now — ₹800
+                </Link>
+              </div>
+
+              {/* Floating badge — batch notice */}
+              <div className="absolute -top-4 -right-4 bg-green-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-lg flex items-center gap-1.5">
+                <RiCheckLine className="text-sm" />
+                New Batch Starting Soon
+              </div>
+
+              {/* Floating enrolled count */}
+              <div className="absolute -bottom-4 -left-4 bg-white rounded-xl px-4 py-2.5 shadow-lifted flex items-center gap-3">
+                <div className="flex -space-x-2">
+                  {["#3b82f6", "#10b981", "#f59e0b"].map((c, i) => (
+                    <div
+                      key={i}
+                      className="w-7 h-7 rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold"
+                      style={{ backgroundColor: c }}
+                    >
+                      {["A", "B", "C"][i]}
+                    </div>
+                  ))}
                 </div>
                 <div>
-                  <p className="text-white font-semibold">
-                    Full Stack Development
+                  <p className="font-semibold text-primary-900 text-sm leading-none">
+                    240+ enrolled
                   </p>
-                  <p className="text-primary-200 text-sm">6 months · ₹19,999</p>
+                  <p className="text-primary-400 text-xs mt-0.5">this month</p>
                 </div>
-              </div>
-              <div className="space-y-3">
-                {[
-                  "React.js & Node.js",
-                  "Firebase & MongoDB",
-                  "REST APIs & JWT",
-                  "Deployment & DevOps",
-                ].map((skill) => (
-                  <div
-                    key={skill}
-                    className="flex items-center gap-2 text-primary-100 text-sm"
-                  >
-                    <span className="w-5 h-5 rounded-full bg-green-500 text-white flex items-center justify-center text-xs flex-shrink-0">
-                      ✓
-                    </span>
-                    {skill}
-                  </div>
-                ))}
-              </div>
-              <Link
-                to="/courses"
-                className="mt-6 w-full btn-accent justify-center text-sm rounded-xl"
-              >
-                Enroll Now
-              </Link>
-            </div>
-
-            {/* Floating badges */}
-            <div className="absolute -top-4 -right-4 bg-green-500 text-white rounded-2xl px-4 py-2 text-sm font-semibold shadow-lg">
-              ✓ Batch Starting Soon!
-            </div>
-            <div className="absolute -bottom-4 -left-4 bg-white rounded-2xl px-4 py-3 shadow-lg flex items-center gap-2">
-              <div className="flex -space-x-2">
-                {["A", "B", "C"].map((l) => (
-                  <div
-                    key={l}
-                    className="w-7 h-7 rounded-full bg-primary-400 border-2 border-white flex items-center justify-center text-white text-xs font-bold"
-                  >
-                    {l}
-                  </div>
-                ))}
-              </div>
-              <div className="text-xs">
-                <p className="font-semibold text-gray-800">+240 enrolled</p>
-                <p className="text-gray-500">this month</p>
               </div>
             </div>
           </motion.div>
-        </div>
-
-        {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1">
-          <p className="text-primary-300 text-xs">Scroll to explore</p>
-          <div className="w-0.5 h-8 bg-primary-400 rounded-full animate-pulse" />
         </div>
       </div>
     </section>
