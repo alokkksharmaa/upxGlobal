@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import logo from "../../assets/logo.png"; // Import the logo
 
 const NAV_LINKS = [
   { label: "Home", to: "/" },
@@ -37,13 +38,9 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 group">
-            <div className="w-9 h-9 rounded-xl bg-primary-700 flex items-center justify-center shadow-md group-hover:bg-primary-800 transition-colors">
-              <span className="text-white font-display font-bold text-sm">
-                UX
-              </span>
-            </div>
+            <img src={logo} alt="UPX Global Logo" className="h-10 w-auto" />
             <span
-              className={`font-display font-bold text-xl ${scrolled ? "text-primary-900" : "text-white"}`}
+              className={`font-display font-bold text-xl hidden sm:inline ${scrolled ? "text-primary-900" : "text-white"}`}
             >
               UPX <span className="text-accent">Global</span>
             </span>
