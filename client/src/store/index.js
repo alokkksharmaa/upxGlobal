@@ -11,3 +11,10 @@ const store = configureStore({
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
+      serializableCheck: {
+        ignoredActions: ['auth/loginAdmin/fulfilled'],
+      },
+    }),
+});
+
+export default store;
