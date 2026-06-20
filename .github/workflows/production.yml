@@ -75,14 +75,17 @@ jobs:
       - name: Run frontend tests
         working-directory: client
         run: |
-          npm install
+          npm install --package-lock-only
+          npm ci
           npm test -- --watchAll=false --passWithNoTests
         env:
           CI: true
 
       - name: Install backend dependencies
         working-directory: server
-        run: npm install
+        run: |
+          npm install --package-lock-only
+          npm ci
 
       - name: Run backend tests
         working-directory: server
