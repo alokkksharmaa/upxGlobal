@@ -1,6 +1,186 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
+import {
+  RiMailLine,
+  RiWhatsappLine,
+  RiGlobalLine,
+  RiSendPlaneLine,
+} from "react-icons/ri";
+
+export default function ContactForm() {
+  const [form, setForm]       = useState({ name: "", email: "", subject: "", message: "" });
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.name || !form.email || !form.subject || !form.message) {
+      toast.error("Please fill all fields");
+      return;
+    }
+    setLoading(true);
+    try {
+      await new Promise((r) => setTimeout(r, 1000));
+      toast.success("Message sent! We'll get back to you within 24 hours.");
+      setForm({ name: "", email: "", subject: "", message: "" });
+    } catch {
+      toast.error("Failed to send. Please try again or email us directly.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const CONTACT_ITEMS = [
+    {
+      icon: RiMailLine,
+      title: "Email Us",
+      val: "upxglobalclasses@gmail.com",
+      sub: "Response within 24 hours",
+      href: "mailto:upxglobalclasses@gmail.com",
+    },
+    {
+      icon: RiWhatsappLine,
+      title: "WhatsApp",
+      val: "+91 62918 75728",
+      sub: "Mon–Sat, 9 AM – 6 PM IST",
+      href: "https://wa.me/916291875728",
+    },
+    {
+      icon: RiGlobalLine,
+      title: "Website",
+      val: "www.upxglobal.info",
+      sub: "Live training & resources",
+      href: "https://www.upxglobal.info",
+    },
+  ];
+
+  return (
+    <section id="contact" className="py-20 lg:py-28 bg-primary-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid lg:grid-cols-2 gap-16 items-start">
+
+          {/* Left info */}
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+          >
+            <span className="text-accent font-semibold text-xs uppercase tracking-widest">
+              Get In Touch
+            </span>
+            <h2 className="section-title mt-2 mb-5">We're Here to Help</h2>
+            <p className="text-primary-500 leading-relaxed mb-8">
+              Have questions about a course or need guidance on which program to
+              choose? Our team is ready to assist you.
+            </p>
+
+            <div className="space-y-4">
+              {CONTACT_ITEMS.map(({ icon: Icon, title, val, sub, href }) => (
+                <a
+                  key={title}
+                  href={href}
+                  target={href.startsWith("http") ? "_blank" : undefined}
+                  rel={href.startsWith("http") ? "noopener noreferrer" : undefined}
+                  className="flex items-start gap-4 group p-4 border border-primary-100 rounded-xl hover:border-accent/30 hover:shadow-card transition-all bg-white"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-accent/8 flex items-center justify-center flex-shrink-0">
+                    <Icon className="text-accent text-lg" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-primary-900 text-sm">{title}</p>
+                    <p className="text-accent font-medium text-sm">{val}</p>
+                    <p className="text-primary-400 text-xs mt-0.5">{sub}</p>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Form */}
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+          >
+            <form
+              onSubmit={handleSubmit}
+              className="bg-white border border-primary-100 rounded-xl p-8 space-y-5"
+            >
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-primary-700 mb-1.5">
+                    Full Name *
+                  </label>
+                  <input
+                    name="name"
+                    value={form.name}
+                    onChange={handleChange}
+                    placeholder="Your name"
+                    className="input-field"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-primary-700 mb-1.5">
+                    Email Address *
+                  </label>
+                  <input
+                    name="email"
+                    type="email"
+                    value={form.email}
+                    onChange={handleChange}
+                    placeholder="you@example.com"
+                    className="input-field"
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-primary-700 mb-1.5">
+                  Subject *
+                </label>
+                <input
+                  name="subject"
+                  value={form.subject}
+                  onChange={handleChange}
+                  placeholder="Course enquiry, placement support..."
+                  className="input-field"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-primary-700 mb-1.5">
+                  Message *
+                </label>
+                <textarea
+                  name="message"
+                  value={form.message}
+                  onChange={handleChange}
+                  rows={5}
+                  placeholder="Tell us how we can help you..."
+                  className="input-field resize-none"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-accent w-full py-3 inline-flex items-center justify-center gap-2"
+              >
+                <RiSendPlaneLine className="text-base" />
+                {loading ? "Sending…" : "Send Message"}
+              </button>
+            </form>
+          </motion.div>
+
+        </div>
+      </div>
+    </section>
+  );
+}
+
 
 export default function ContactForm() {
   const [form, setForm] = useState({

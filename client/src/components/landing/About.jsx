@@ -1,32 +1,40 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import {
+  RiTargetLine,
+  RiGroupLine,
+  RiHandHeartLine,
+  RiBarChartLine,
+  RiArrowRightLine,
+} from "react-icons/ri";
 
 const VALUES = [
   {
-    icon: "🎯",
+    icon: RiTargetLine,
     title: "Mission-Driven",
-    desc: "Our mission is to democratize quality tech education and make it accessible to every student.",
+    desc: "Democratizing quality education and making it accessible to every student across India.",
   },
   {
-    icon: "🏆",
+    icon: RiGroupLine,
     title: "Expert Faculty",
-    desc: "Learn from industry veterans with 10+ years of hands-on experience at top companies.",
+    desc: "Learn from industry professionals with years of hands-on experience at top companies.",
   },
   {
-    icon: "🤝",
+    icon: RiHandHeartLine,
     title: "Career Support",
-    desc: "Dedicated placement team with 50+ hiring partners across India and globally.",
+    desc: "Dedicated placement guidance with 50+ hiring partners across India.",
   },
   {
-    icon: "📊",
+    icon: RiBarChartLine,
     title: "Proven Results",
-    desc: "95% placement rate with an average salary of ₹6 LPA for our graduates.",
+    desc: "95% placement rate with consistent student success across all programs.",
   },
 ];
 
 export default function About() {
   return (
-    <section id="about" className="py-20 lg:py-28 bg-gray-50">
+    <section id="about" className="py-20 lg:py-28 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           {/* Text */}
@@ -36,23 +44,24 @@ export default function About() {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <span className="text-accent font-semibold text-sm uppercase tracking-widest">
+            <span className="text-accent font-semibold text-xs uppercase tracking-widest">
               About Us
             </span>
-            <h2 className="section-title mt-2 mb-6">
-              Building India's Next Generation of Tech Professionals
+            <h2 className="section-title mt-2 mb-5">
+              Building India's Next Generation of Professionals
             </h2>
-            <p className="text-gray-600 leading-relaxed mb-4">
-              UPX Global was founded with a singular vision: bridge the gap
-              between academic education and industry requirements. We design
-              every course with direct input from hiring managers and CXOs.
+            <p className="text-primary-500 leading-relaxed mb-4">
+              UPX Global Classes was founded with a singular vision — bridge the
+              gap between academic education and what industry actually demands.
+              Every program is designed with direct input from hiring managers
+              and experienced professionals.
             </p>
-            <p className="text-gray-600 leading-relaxed mb-8">
-              Our immersive, project-based curriculum ensures you don't just
-              learn concepts — you build production-grade applications that
-              showcase your skills to employers.
+            <p className="text-primary-500 leading-relaxed mb-8">
+              Our practical, project-based curriculum ensures students don't
+              just learn concepts — they develop real skills, build confidence,
+              and step into their careers prepared.
             </p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 mb-8">
               {[
                 { n: "5,000+", l: "Students Trained" },
                 { n: "95%", l: "Placement Rate" },
@@ -61,15 +70,22 @@ export default function About() {
               ].map(({ n, l }) => (
                 <div
                   key={l}
-                  className="bg-white rounded-2xl p-4 shadow-card text-center"
+                  className="border border-primary-100 rounded-lg p-4 text-center"
                 >
-                  <div className="text-2xl font-display font-bold text-primary-700">
+                  <div className="text-2xl font-display font-bold text-primary-900">
                     {n}
                   </div>
-                  <div className="text-gray-500 text-sm mt-1">{l}</div>
+                  <div className="text-primary-400 text-xs mt-1">{l}</div>
                 </div>
               ))}
             </div>
+            <Link
+              to="/about"
+              className="inline-flex items-center gap-2 text-accent font-semibold text-sm hover:gap-3 transition-all"
+            >
+              Learn More About Us
+              <RiArrowRightLine />
+            </Link>
           </motion.div>
 
           {/* Values grid */}
@@ -78,20 +94,26 @@ export default function About() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
-            className="grid grid-cols-1 sm:grid-cols-2 gap-5"
+            className="grid grid-cols-1 sm:grid-cols-2 gap-4"
           >
-            {VALUES.map(({ icon, title, desc }, i) => (
+            {VALUES.map(({ icon: Icon, title, desc }, i) => (
               <motion.div
                 key={title}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="bg-white rounded-2xl p-5 shadow-card hover:shadow-lifted transition-shadow"
+                className="border border-primary-100 rounded-xl p-5 hover:border-accent/30 hover:shadow-card transition-all"
               >
-                <div className="text-3xl mb-3">{icon}</div>
-                <h3 className="font-semibold text-primary-900 mb-2">{title}</h3>
-                <p className="text-gray-500 text-sm leading-relaxed">{desc}</p>
+                <div className="w-9 h-9 rounded-lg bg-accent/8 flex items-center justify-center mb-3">
+                  <Icon className="text-accent text-lg" />
+                </div>
+                <h3 className="font-semibold text-primary-900 text-sm mb-1.5">
+                  {title}
+                </h3>
+                <p className="text-primary-400 text-xs leading-relaxed">
+                  {desc}
+                </p>
               </motion.div>
             ))}
           </motion.div>

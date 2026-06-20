@@ -1,66 +1,61 @@
 import React from "react";
 import { motion } from "framer-motion";
+import { RiStarFill, RiDoubleQuotesL } from "react-icons/ri";
 
 const TESTIMONIALS = [
   {
     name: "Priya Sharma",
-    role: "Software Engineer @ Infosys",
+    role: "Software Engineer",
+    company: "Infosys",
     course: "Industry-Oriented Training",
-    initials: "PS",
     photo:
-      "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=100&h=100&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=80&h=80&auto=format&fit=crop&q=80",
     rating: 5,
-    text: "UpXGlobal completely transformed my career. The hands-on projects and mentor support helped me land my dream job within 2 months of completing the course. Absolutely worth every rupee!",
-    bg: "from-blue-500 to-primary-700",
+    text: "UpXGlobal completely transformed my career. The hands-on projects and mentor support helped me land my first job within 2 months of completing the course.",
   },
   {
     name: "Rahul Verma",
-    role: "Data Analyst @ TCS",
+    role: "Data Analyst",
+    company: "TCS",
     course: "Career Readiness Program",
-    initials: "RV",
     photo:
-      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&h=100&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=80&h=80&auto=format&fit=crop&q=80",
     rating: 5,
     text: "The course content is incredibly well-structured and industry-relevant. The placement support team worked tirelessly to help me get placed. I got my offer within 30 days.",
-    bg: "from-purple-500 to-primary-800",
   },
   {
     name: "Ananya Singh",
-    role: "Associate @ Wipro",
+    role: "Associate",
+    company: "Wipro",
     course: "Professional Upskilling",
-    initials: "AS",
     photo:
-      "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=100&h=100&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=80&h=80&auto=format&fit=crop&q=80",
     rating: 5,
-    text: "I was a working professional looking to switch roles. UpXGlobal's upskilling program gave me exactly the edge I needed. My LinkedIn was optimized, my resume was revamped — and I got a better role!",
-    bg: "from-green-500 to-teal-700",
+    text: "I was a working professional looking to switch roles. UpXGlobal's upskilling program gave me exactly the edge I needed — LinkedIn optimized, resume revamped, better role secured.",
   },
   {
     name: "Karthik Nair",
-    role: "Business Analyst @ Accenture",
+    role: "Business Analyst",
+    company: "Accenture",
     course: "Industry-Oriented Training",
-    initials: "KN",
     photo:
-      "https://images.unsplash.com/photo-1569124589354-615739ae007b?w=100&h=100&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1569124589354-615739ae007b?w=80&h=80&auto=format&fit=crop&q=80",
     rating: 5,
-    text: "The real-world case studies and expert-led sessions set this apart from any other training I've done. The 45-day structure was intense but perfectly paced. Highly recommend!",
-    bg: "from-orange-500 to-red-600",
+    text: "The real-world case studies and expert-led sessions set this apart from any other training I've done. The 45-day structure was intense but perfectly paced.",
   },
 ];
 
 const Stars = ({ count }) => (
   <div className="flex gap-0.5">
     {Array.from({ length: count }).map((_, i) => (
-      <span key={i} className="text-yellow-400 text-sm">
-        ★
-      </span>
+      <RiStarFill key={i} className="text-amber-400 text-sm" />
     ))}
   </div>
 );
 
 export default function Testimonials() {
   return (
-    <section className="py-20 lg:py-28 bg-gray-50">
+    <section className="py-20 lg:py-28 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -68,52 +63,47 @@ export default function Testimonials() {
           viewport={{ once: true }}
           className="text-center mb-14"
         >
-          <span className="text-accent font-semibold text-sm uppercase tracking-widest">
-            Testimonials
+          <span className="text-accent font-semibold text-xs uppercase tracking-widest">
+            Student Stories
           </span>
-          <h2 className="section-title mt-2">Success Stories</h2>
-          <p className="section-subtitle mt-4 mx-auto">
-            Don't take our word for it — hear directly from students who
-            transformed their careers.
+          <h2 className="section-title mt-2">Results That Speak</h2>
+          <p className="section-subtitle mt-4 mx-auto text-center">
+            Hear directly from students who transformed their careers with UPX
+            Global.
           </p>
         </motion.div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {TESTIMONIALS.map(
-            ({ name, role, course, initials, photo, rating, text, bg }, i) => (
+            ({ name, role, company, course, photo, rating, text }, i) => (
               <motion.div
                 key={name}
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="bg-white rounded-3xl shadow-card hover:shadow-lifted transition-shadow p-6 flex flex-col"
+                transition={{ delay: i * 0.08 }}
+                className="border border-primary-100 rounded-xl p-6 flex flex-col hover:border-accent/30 hover:shadow-card transition-all"
               >
+                <RiDoubleQuotesL className="text-accent/30 text-3xl mb-3" />
                 <Stars count={rating} />
-                <p className="text-gray-600 text-sm leading-relaxed mt-4 mb-6 flex-1">
-                  "{text}"
+                <p className="text-primary-500 text-sm leading-relaxed mt-3 mb-5 flex-1">
+                  {text}
                 </p>
-                <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
+                <div className="flex items-center gap-3 pt-4 border-t border-primary-50">
                   <img
                     src={photo}
                     alt={name}
-                    className="w-10 h-10 rounded-full object-cover flex-shrink-0 ring-2 ring-primary-100"
-                    onError={(e) => {
-                      e.target.style.display = "none";
-                      e.target.nextSibling.style.display = "flex";
-                    }}
+                    className="w-9 h-9 rounded-full object-cover flex-shrink-0"
+                    loading="lazy"
                   />
-                  <div
-                    className={`w-10 h-10 rounded-full bg-gradient-to-br ${bg} items-center justify-center text-white font-bold text-sm flex-shrink-0 hidden`}
-                  >
-                    {initials}
-                  </div>
                   <div>
-                    <p className="font-semibold text-gray-900 text-sm">
+                    <p className="font-semibold text-primary-900 text-sm leading-none">
                       {name}
                     </p>
-                    <p className="text-gray-400 text-xs">{role}</p>
-                    <p className="text-primary-600 text-xs">{course}</p>
+                    <p className="text-primary-400 text-xs mt-0.5">
+                      {role} · {company}
+                    </p>
+                    <p className="text-accent text-xs mt-0.5">{course}</p>
                   </div>
                 </div>
               </motion.div>
@@ -121,30 +111,28 @@ export default function Testimonials() {
           )}
         </div>
 
-        {/* Google rating badge */}
-        <div className="flex justify-center mt-12">
-          <div className="bg-white rounded-2xl shadow-card px-8 py-4 flex items-center gap-6 divide-x divide-gray-100">
-            <div className="text-center">
-              <p className="text-3xl font-display font-bold text-primary-700">
-                4.9
-              </p>
-              <Stars count={5} />
-              <p className="text-gray-400 text-xs mt-1">Google Rating</p>
-            </div>
-            <div className="pl-6 text-center">
-              <p className="text-3xl font-display font-bold text-primary-700">
-                1,200+
-              </p>
-              <p className="text-gray-500 text-sm">Reviews</p>
-            </div>
-            <div className="pl-6 text-center">
-              <p className="text-3xl font-display font-bold text-primary-700">
-                98%
-              </p>
-              <p className="text-gray-500 text-sm">Would Recommend</p>
-            </div>
+        {/* Rating bar */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="flex justify-center mt-12"
+        >
+          <div className="border border-primary-100 rounded-xl px-8 py-5 flex flex-wrap items-center justify-center gap-8 divide-x divide-primary-100">
+            {[
+              { value: "4.9", label: "Google Rating" },
+              { value: "1,200+", label: "Reviews" },
+              { value: "98%", label: "Would Recommend" },
+            ].map(({ value, label }, i) => (
+              <div key={label} className={`text-center ${i > 0 ? "pl-8" : ""}`}>
+                <p className="text-2xl font-display font-bold text-primary-900">
+                  {value}
+                </p>
+                <p className="text-primary-400 text-xs mt-0.5">{label}</p>
+              </div>
+            ))}
           </div>
-        </div>
+        </motion.div>
       </div>
     </section>
   );
